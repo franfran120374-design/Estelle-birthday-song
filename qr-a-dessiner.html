@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR à dessiner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root{--bg:#17121c;--panel:#221a29;--line:#352b3f;--ink:#f3ece4;--muted:#9a8fa3;--ember:#e99b5c;--rose:#d98a7d;--ok:#7fbf8f;--warn:#e0b15a;--bad:#d97d7d}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.5;padding:28px 18px 64px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-family:"Instrument Serif",serif;font-style:italic;font-size:2.4rem;line-height:1}
+  .lead{color:var(--muted);margin:10px 0 28px;font-size:.95rem}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}
+  label{display:block;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  input[type=url]{width:100%;background:#1a141f;border:1px solid var(--line);border-radius:10px;color:var(--ink);
+    padding:13px 14px;font-size:1rem;font-family:inherit}
+  input[type=url]:focus{outline:2px solid var(--ember);outline-offset:1px;border-color:transparent}
+  .ec{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .ec button{flex:1;min-width:64px;background:#1a141f;border:1px solid var(--line);color:var(--muted);
+    border-radius:10px;padding:9px 6px;cursor:pointer;font-family:inherit;font-size:.82rem;transition:.18s}
+  .ec button.on{background:rgba(233,155,92,.14);border-color:var(--ember);color:var(--ember)}
+  .ec small{display:block;font-size:.66rem;opacity:.7;margin-top:2px}
+
+  .stat{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;flex-wrap:wrap}
+  .stat b{font-size:1.05rem}
+  .verdict{font-size:.85rem;padding:3px 10px;border-radius:999px}
+  .v-ok{background:rgba(127,191,143,.16);color:var(--ok)}
+  .v-warn{background:rgba(224,177,90,.16);color:var(--warn)}
+  .v-bad{background:rgba(217,125,125,.16);color:var(--bad)}
+
+  .tabs{display:flex;gap:6px;margin:6px 0 18px}
+  .tabs button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    padding:7px 16px;cursor:pointer;font-family:inherit;font-size:.85rem}
+  .tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+  .stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+  #qrwrap canvas{image-rendering:pixelated;border-radius:6px;background:#fff;padding:14px}
+  .grid-scroll{width:100%;overflow:auto;background:#fff;border-radius:10px;padding:10px}
+  .grid-scroll svg{display:block;margin:0 auto}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .actions button{background:var(--ember);color:#221a29;border:none;border-radius:10px;padding:12px 18px;
+    font-family:inherit;font-weight:600;font-size:.9rem;cursor:pointer}
+  .actions button.ghost{background:none;border:1px solid var(--line);color:var(--ink)}
+  .note{font-size:.82rem;color:var(--muted);background:rgba(233,155,92,.07);border-left:2px solid var(--ember);
+    padding:10px 14px;border-radius:0 8px 8px 0;margin-top:8px}
+  .steps{font-size:.9rem;color:var(--muted)}
+  .steps li{margin:8px 0 8px 18px}
+  .steps code{background:#1a141f;padding:1px 6px;border-radius:5px;color:var(--rose);font-size:.85em;word-break:break-all}
+  @media print{
+    body{background:#fff;padding:0}
+    .panel,.lead,.tabs,.actions,h1,.note,.steps,.ec,label,.stat{display:none!important}
+    .grid-scroll{padding:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>QR à dessiner</h1>
+  <p class="lead">Colle l'adresse de ta page. L'outil fabrique le QR scannable <em>et</em> une grille agrandie à recopier case par case. Moins il y a de cases, plus c'est facile à la main.</p>
+
+  <div class="panel">
+    <label for="url">Adresse que le QR ouvrira</label>
+    <input id="url" type="url" value="https://tinyurl.com/29-novembre" spellcheck="false">
+    <div class="ec" id="ec">
+      <button data-ec="L" class="on">L <small>léger · scan facile</small></button>
+      <button data-ec="M">M <small>moyen</small></button>
+      <button data-ec="Q">Q <small>robuste</small></button>
+      <button data-ec="H">H <small>très robuste</small></button>
+    </div>
+    <div class="note">Pour un QR <strong>dessiné à la main</strong>, garde le niveau <strong>L</strong> : moins de cases. Monte en M/Q/H seulement si tu l'imprimes et que tu veux qu'il résiste aux ratures.</div>
+  </div>
+
+  <div class="stat">
+    <b id="dim">—</b>
+    <span class="verdict" id="verdict">—</span>
+  </div>
+
+  <div class="tabs">
+    <button id="tabQR" class="on">QR (à imprimer / scanner)</button>
+    <button id="tabGrid">Grille à dessiner</button>
+  </div>
+
+  <div class="stage">
+    <div id="qrwrap"></div>
+    <div class="grid-scroll" id="gridwrap" style="display:none"></div>
+    <div class="actions">
+      <button id="dl">Télécharger le QR (PNG)</button>
+      <button id="print" class="ghost">Imprimer la grille</button>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:26px">
+    <label>Comment le mettre en ligne (une fois)</label>
+    <ol class="steps">
+      <li>Dépose <code>index.html</code> et <code>vingt-neuf-novembre.mp3</code> dans un dossier de ton repo <code>mon-bureau</code> (ex. <code>/29/</code>), même dossier pour les deux.</li>
+      <li>Ton adresse devient un truc long type <code>franfran120374-design.github.io/mon-bureau/29/</code>.</li>
+      <li>Raccourcis-la (TinyURL, Bitly…) pour obtenir une URL courte → recolle-la ci-dessus. Le compteur de cases te dira quand c'est dessinable.</li>
+      <li>Laisse une <strong>marge blanche d'environ 4 cases</strong> tout autour de ton dessin, sinon les scanners galèrent.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+  let ec="L";
+  const urlEl=document.getElementById('url'), dimEl=document.getElementById('dim'),
+        verdictEl=document.getElementById('verdict'), qrwrap=document.getElementById('qrwrap'),
+        gridwrap=document.getElementById('gridwrap');
+  let lastQR=null, lastN=0;
+
+  function build(){
+    const text=urlEl.value.trim()||" ";
+    let qr;
+    try{ qr=qrcode(0, ec); qr.addData(text); qr.make(); }
+    catch(e){ dimEl.textContent="URL trop longue pour un QR"; verdictEl.className="verdict v-bad"; verdictEl.textContent="raccourcis-la"; return; }
+    lastQR=qr; const N=qr.getModuleCount(); lastN=N;
+    const ver=(N-21)/4+1;
+    dimEl.textContent=`Version ${ver} · ${N}×${N} cases (${N*N} au total)`;
+    let cls,msg;
+    if(N<=21){cls="v-ok";msg="très facile à dessiner";}
+    else if(N<=25){cls="v-ok";msg="facile à dessiner";}
+    else if(N<=29){cls="v-warn";msg="faisable, sois patiente";}
+    else if(N<=33){cls="v-warn";msg="long à la main";}
+    else{cls="v-bad";msg="déconseillé à la main — raccourcis l'URL";}
+    verdictEl.className="verdict "+cls; verdictEl.textContent=msg;
+    renderQR(qr,N); renderGrid(qr,N);
+  }
+
+  function renderQR(qr,N){
+    const quiet=4, scale=8, size=(N+quiet*2)*scale;
+    const c=document.createElement('canvas'); c.width=size; c.height=size;
+    const x=c.getContext('2d'); x.fillStyle="#fff"; x.fillRect(0,0,size,size);
+    x.fillStyle="#000";
+    for(let r=0;r<N;r++)for(let col=0;col<N;col++) if(qr.isDark(r,col))
+      x.fillRect((col+quiet)*scale,(r+quiet)*scale,scale,scale);
+    qrwrap.innerHTML=""; qrwrap.appendChild(c); qrwrap._canvas=c;
+  }
+
+  function renderGrid(qr,N){
+    const cell=26, pad=22, W=N*cell+pad*2;
+    let s=`<svg width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" xmlns="http://www.w3.org/2000/svg">`;
+    s+=`<rect width="${W}" height="${W}" fill="#fff"/>`;
+    // cases noires
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(qr.isDark(r,c))
+      s+=`<rect x="${pad+c*cell}" y="${pad+r*cell}" width="${cell}" height="${cell}" fill="#1a1a1a"/>`;
+    // grille fine
+    for(let i=0;i<=N;i++){
+      const p=pad+i*cell, bold=(i%5===0);
+      const col=bold?"#b08968":"#d9cfc4", w=bold?1.4:0.6;
+      s+=`<line x1="${p}" y1="${pad}" x2="${p}" y2="${pad+N*cell}" stroke="${col}" stroke-width="${w}"/>`;
+      s+=`<line x1="${pad}" y1="${p}" x2="${pad+N*cell}" y2="${p}" stroke="${col}" stroke-width="${w}"/>`;
+    }
+    // repères tous les 5
+    for(let i=0;i<=N;i+=5){
+      s+=`<text x="${pad+i*cell}" y="${pad-7}" font-size="11" fill="#b08968" text-anchor="middle" font-family="Inter,sans-serif">${i}</text>`;
+      s+=`<text x="${pad-9}" y="${pad+i*cell+4}" font-size="11" fill="#b08968" text-anchor="end" font-family="Inter,sans-serif">${i}</text>`;
+    }
+    s+=`</svg>`;
+    gridwrap.innerHTML=s;
+  }
+
+  // tabs
+  const tQR=document.getElementById('tabQR'), tGrid=document.getElementById('tabGrid');
+  tQR.onclick=()=>{tQR.classList.add('on');tGrid.classList.remove('on');qrwrap.style.display='';gridwrap.style.display='none';};
+  tGrid.onclick=()=>{tGrid.classList.add('on');tQR.classList.remove('on');qrwrap.style.display='none';gridwrap.style.display='';};
+
+  // ec buttons
+  document.getElementById('ec').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    ec=b.dataset.ec;
+    [...document.querySelectorAll('#ec button')].forEach(x=>x.classList.toggle('on',x===b));
+    build();
+  });
+
+  urlEl.addEventListener('input',build);
+
+  document.getElementById('dl').onclick=()=>{
+    if(!qrwrap._canvas)return;
+    const a=document.createElement('a'); a.download='qr-29-novembre.png';
+    a.href=qrwrap._canvas.toDataURL('image/png'); a.click();
+  };
+  document.getElementById('print').onclick=()=>{ tGrid.click(); window.print(); };
+
+  build();
+</script>
+</body>
+</html>
